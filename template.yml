@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: aws-decouple-messaging-pattern
+
+Globals:
+  Function:
+    Runtime: java11
+    MemorySize: 3072
+    Timeout: 30
+
+  Api:
+    OpenApiVersion: '3.0.1'
+
+Resources:
+  PaymentsAPIGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Name: PaymentsAPIGateway
+
+#Lambda Function
+  Customer:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Customer
+      Handler: com.ibercode.customer.Customer::handleRequest
+      CodeUri: target/sourceCode.zip
+      Events:
+        Payment:
+          Type: Api
+          Properties:
+            Path: /payments
+            Method: POST
+            RestApiId: !Ref PaymentsAPIGateway
+      Policies:
+        - AmazonDynamoDBFullAccess
+        - AmazonSQSFullAccess
+      Environment:
+        Variables:
+          REGION: !Sub '${AWS::Region}'
+          CUSTOMERS_TABLE: !Ref CustomerPaymentsDDB
+          QUEUE_URL: !Ref SalesSqsQueue
+
+#Lambda Function
+  Sales:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Sales
+      Handler: com.ibercode.sales.Sales::handleRequest
+      CodeUri: target/sourceCode.zip
+      Policies:
+        - AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          REGION: !Sub '${AWS::Region}'
+          SALES_TABLE: !Ref SalesDynamoDB
+      Events:
+        SalesSQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt SalesSqsQueue.Arn
+
+# SQS Queue
+  SalesSqsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: Sales
+
+# DynamoDB Table
+  SalesDynamoDB:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: Sales
+      AttributeDefinitions:
+        - AttributeName: saleId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: saleId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+# DynamoDB Table
+  CustomerPaymentsDDB:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: CustomerPayments
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+Outputs:
+  PaymentsEndpoint:
+    Description: API Gateway Payments Endpoint
+    Value:
+      Fn::Sub: https://${PaymentsAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/payments
