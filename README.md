@@ -10,7 +10,7 @@ Topology
 ## Description
 
 The communication style in this pattern is asynchronous.
-The Customer Service sends a message to an SQS queue and does not expect any response from the Sales Service(fire and forget model).
+The Customer Service sends a message to an SQS queue and does not expect any response from the Sales Service(fire-and-forget model).
 The SQS queue will trigger the Sales Service whenever there are new messages in the queue.
 The Sales Service is responsible for consuming the messages from the queue.
 
