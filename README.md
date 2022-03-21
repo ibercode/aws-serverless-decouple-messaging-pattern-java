@@ -99,7 +99,7 @@ aws s3 rb s3://nh9d8122nldaksjd9022dwd
 
 
 ## Author bio
-Name: Razvan Minciuna
-LinkedIn: https://www.linkedin.com/in/razvanminciuna/
+Razvan Minciuna
+https://www.linkedin.com/in/razvanminciuna/
 
 
